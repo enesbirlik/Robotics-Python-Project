@@ -34,8 +34,8 @@ def get_my_robot_parameters():
 
 def get_test_positions():
     return [
-        [200, 200, 200],    # Forward position
-        [20, 50, 150]       # Side position   
+        [200, 400, 200],    # First position
+        [300, 300, 300]       # Goal position   
     ]
 
 def get_solver_parameters():
