@@ -1,11 +1,48 @@
 import numpy as np
-from roboticstoolbox import DHRobot, RevoluteDH, PrismaticDH
-from spatialmath import SE3
 from scipy.linalg import pinv
-import time
 
-    
 class IKSolver:
+    @staticmethod
+    def newton_raphson_solver(robot, target_position, max_iter=100, tolerance=1e-3):
+        """Newton-Raphson method for inverse kinematics"""
+        try:
+            q = np.zeros(len(robot.joint_types))
+            
+            for iteration in range(max_iter):
+                current_pose = robot.forward_kinematics(q)
+                if current_pose is None:
+                    return None, max_iter
+                    
+                current_pos = current_pose.t
+                error = target_position - current_pos
+                error_norm = np.linalg.norm(error)
+                
+                if error_norm < tolerance:
+                    return q, iteration
+                
+                # Calculate Jacobian
+                J = robot.robot.jacob0(q)[:3, :]
+                
+                # Calculate pseudo-inverse of Jacobian
+                J_pinv = pinv(J)
+                
+                # Calculate joint corrections using Newton-Raphson method
+                f = current_pos - target_position
+                dq = -np.dot(J_pinv, f)
+                
+                # Update joint angles
+                q = q + dq
+                
+                # Apply joint limits
+                for i in range(len(q)):
+                    q[i] = np.clip(q[i], robot.qlim[i][0], robot.qlim[i][1])
+            
+            return q, max_iter
+            
+        except Exception as e:
+            print(f"Newton-Raphson solution error: {str(e)}")
+            return None, max_iter
+
     @staticmethod
     def ccd_solver(robot, target_position, max_iter=1000, tolerance=1e-4):
         """Cyclic Coordinate Descent yöntemi"""
@@ -150,7 +187,6 @@ class IKSolver:
             print(f"FABRIK çözüm hatası: {str(e)}")
             return None, max_iter
 
-
     @staticmethod
     def jacobian_solver(robot, target_position, max_iter=100, tolerance=1e-3, alpha=0.5):
         """Jacobian bazlı yöntem"""
@@ -227,212 +263,3 @@ class IKSolver:
         except Exception as e:
             print(f"DLS çözüm hatası: {str(e)}")
             return None, max_iter
-
-class RobotManipulator:
-    def __init__(self, dh_params, joint_types, qlim):
-        self.DH = np.array(dh_params)
-        self.joint_types = joint_types
-        self.qlim = np.array(qlim)
-        self.robot = self._create_robot()
-        self.solution_metrics = {}
-        
-    def _create_robot(self):
-        try:
-            links = []
-            for i, (dh_params, joint_type, joint_limits) in enumerate(
-                zip(self.DH, self.joint_types, self.qlim)):
-                
-                a, alpha, d, offset = dh_params
-                
-                if joint_type == "R":
-                    link = RevoluteDH(
-                        a=a, 
-                        alpha=alpha, 
-                        d=d, 
-                        offset=offset, 
-                        qlim=joint_limits
-                    )
-                elif joint_type == "P":
-                    link = PrismaticDH(
-                        a=a, 
-                        alpha=alpha, 
-                        theta=offset,
-                        qlim=joint_limits
-                    )
-                else:
-                    raise ValueError(f"Geçersiz eklem tipi '{joint_type}' pozisyon {i}'de")
-                    
-                links.append(link)
-                
-            return DHRobot(links, name="My_Robot")
-            
-        except Exception as e:
-            print(f"Robot oluşturma hatası: {str(e)}")
-            return None
-
-    def solve_inverse_kinematics(self, target_position, method='all', **kwargs):
-        """
-        Farklı ters kinematik çözüm yöntemlerini çağıran fonksiyon
-        """
-        def call_solver(solver_func, solver_name, target_position, kwargs):
-            start_time = time.time()
-            
-            # Her solver için gerekli parametreleri ayır
-            solver_kwargs = {}
-            if 'max_iter' in kwargs:
-                solver_kwargs['max_iter'] = kwargs['max_iter']
-            if 'tolerance' in kwargs:
-                solver_kwargs['tolerance'] = kwargs['tolerance']
-                
-            # Özel parametreler
-            if solver_name == 'dls' and 'lambda_val' in kwargs:
-                solver_kwargs['lambda_val'] = kwargs['lambda_val']
-            elif solver_name == 'jacobian' and 'alpha' in kwargs:
-                solver_kwargs['alpha'] = kwargs['alpha']
-                
-            joint_angles, iterations = solver_func(self, target_position, **solver_kwargs)
-            end_time = time.time()
-            
-            if joint_angles is not None:
-                final_pos = self.forward_kinematics(joint_angles).t
-                error = np.linalg.norm(final_pos - target_position)
-                
-                return {
-                    'joint_angles': joint_angles,
-                    'iterations': iterations,
-                    'time': end_time - start_time,
-                    'error': error
-                }
-            return None
-
-        solvers = {
-            'ccd': IKSolver.ccd_solver,
-            'fabrik': IKSolver.fabrik_solver,
-            'jacobian': IKSolver.jacobian_solver,
-            'dls': IKSolver.dls_solver
-        }
-        
-        if method == 'all':
-            results = {}
-            for solver_name, solver_func in solvers.items():
-                result = call_solver(solver_func, solver_name, target_position, kwargs)
-                if result is not None:
-                    results[solver_name] = result
-            
-            self.solution_metrics = results
-            return results
-            
-        elif method in solvers:
-            result = call_solver(solvers[method], method, target_position, kwargs)
-            if result is not None:
-                self.solution_metrics = {method: result}
-                return result
-        else:
-            raise ValueError(f"Geçersiz çözüm yöntemi: {method}")
-
-    def forward_kinematics(self, joint_angles):
-        try:
-            # Gelen açıları numpy array'e çevir
-            if not isinstance(joint_angles, np.ndarray):
-                joint_angles = np.array(joint_angles)
-                
-            # Eksik açıları tamamla
-            if joint_angles.size < len(self.joint_types):
-                q = np.zeros(len(self.joint_types))
-                q[:joint_angles.size] = joint_angles
-            else:
-                q = joint_angles
-                
-            return self.robot.fkine(q)
-        except Exception as e:
-            print(f"İleri kinematik çözüm hatası: {str(e)}")
-            return None
-
-    def visualize(self, joint_angles, block=True):
-        try:
-            self.robot.teach(joint_angles, block=block)
-        except Exception as e:
-            print(f"Görselleştirme hatası: {str(e)}")
-
-    def print_solution_metrics(self):
-        """Çözüm metriklerini yazdır"""
-        print("\nÇözüm Metrikleri:")
-        print("-----------------")
-        for method, metrics in self.solution_metrics.items():
-            print(f"\n{method.upper()} Yöntemi:")
-            print(f"İterasyon Sayısı: {metrics['iterations']}")
-            print(f"Çözüm Süresi: {metrics['time']:.4f} saniye")
-            print(f"Hedef Noktaya Uzaklık: {metrics['error']:.4f} mm")
-            print(f"Eklem Açıları (derece): {np.degrees(metrics['joint_angles'])}")
-
-def get_robot_parameters():
-    # [a, alpha, d, offset] UNIVERSAL ROBOTS UR5 PARAMETERS
-    dh_params = [
-        [0,     np.pi/2,     89.2,     0],    # Link 1 (Revolute)
-        [-425,  0,           0,        0],    # Link 2 (Revolute)
-        [-392,  0,           0,        0],    # Link 3 (Revolute)
-        [0,     np.pi/2,     109.3,    0],    # Link 4 (Revolute)
-        [0,    -np.pi/2,     94.75,    0],    # Link 5 (Revolute)
-        [0,     0,           82.5,     0]     # Link 6 (Revolute)
-    ]        
-
-    joint_types = "RRRRRR"  # R: Revolute (Döner), P: Prismatic (Prizmatik)
-    qlim = [
-        [-2*np.pi, 2*np.pi],  # 1. eklem (R)
-        [-2*np.pi, 2*np.pi],  # 2. eklem (R)
-        [-2*np.pi, 2*np.pi],  # 3. eklem (R)
-        [-2*np.pi, 2*np.pi],  # 4. eklem (R)
-        [-2*np.pi, 2*np.pi],  # 5. eklem (R)
-        [-2*np.pi, 2*np.pi]   # 6. eklem (R)
-    ]
-    return dh_params, joint_types, qlim
-
-def test_ik_solvers():
-    """Farklı test senaryoları için ters kinematik çözücüleri test et"""
-    dh_params, joint_types, qlim = get_robot_parameters()
-    robot = RobotManipulator(dh_params, joint_types, qlim)
-    
-    # Test senaryoları
-    test_positions = [
-        [800, 800, 800],    # Önde bir nokta
-        [55, 55, 55],    # Yanda bir nokta
-        [60, 60, 60],    # Yukarıda bir nokta
-        [100, 100, 100], # Farklı bir nokta
-    ]
-    
-    # Solver parametreleri
-    solver_params = {
-        'max_iter': 1000,
-        'tolerance': 1e-3,
-        'lambda_val': 0.2,  # DLS için
-        'alpha': 0.5        # Jacobian için
-    }
-    
-    for i, target_pos in enumerate(test_positions):
-        print(f"\nTest {i+1}: Hedef Pozisyon = {target_pos}")
-        print("=" * 50)
-        
-        # Tüm yöntemleri test et
-        results = robot.solve_inverse_kinematics(
-            target_pos, 
-            method='all',
-            **solver_params
-        )
-        
-        # Sonuçları yazdır
-        robot.print_solution_metrics()
-        
-        # En iyi çözümü görselleştir
-        if results:
-            best_method = min(results.items(), key=lambda x: x[1]['error'])[0]
-            print(f"\nEn iyi çözüm ({best_method}) görselleştiriliyor...")
-            robot.visualize(results[best_method]['joint_angles'])
-
-def main():
-    print("UR5 Robot Ters Kinematik Çözüm Testi Başlıyor...")
-    print("=" * 50)
-    
-    test_ik_solvers()
-
-if __name__ == "__main__":
-    main()
