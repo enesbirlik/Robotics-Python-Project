@@ -108,9 +108,11 @@ class RobotManipulator:
             print(f"Error in solve_inverse_kinematics: {str(e)}")
             return None
         
-    def visualize(self, joint_angles, block=True):
+    def visualize(self, joint_angles, gui=None, block=True):
         """Visualize a single robot configuration"""
         try:
+            if isinstance(joint_angles, (int, float)):
+                joint_angles = np.zeros(len(self.joint_types))
             self.robot.plot(joint_angles, block=block)
         except Exception as e:
             print(f"Visualization error: {str(e)}")
@@ -121,13 +123,12 @@ class RobotManipulator:
             if not isinstance(trajectory, np.ndarray):
                 trajectory = np.array(trajectory)
             
-            # Create robot display with basic settings
             self.robot.plot(trajectory,
-                            backend='pyplot',  # Use PyPlot backend
-                           dt=0.05,          # Time step between configurations
-                           block=False,        # Block until the plot is closed
-                           eeframe=True,      # Show end-effector frame
-                           jointaxes=True)   # Hide joint axes for cleaner view
+                        backend='pyplot',
+                        dt=0.05,
+                        block=False,
+                        eeframe=True,
+                        jointaxes=True)
             
         except Exception as e:
             print(f"\nAnimation error: {str(e)}")
