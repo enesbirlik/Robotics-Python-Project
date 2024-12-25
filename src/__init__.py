@@ -1,4 +1,5 @@
-from .robot import CustomRobot
-from .ik_solver import IKSolver
+from .core.robot_base import RobotBase
+from .core.robot_configs import RobotConfig, RobotConfigs
+from .solvers import CCDSolver, FABRIKSolver, JacobianSolver, DLSSolver
 
-__all__ = ['CustomRobot', 'IKSolver']
+__version__ = '0.1.0'

@@ -1,5 +1,4 @@
 import numpy as np
-import roboticstoolbox as rtb
 from roboticstoolbox import DHRobot, RevoluteDH, PrismaticDH
 from spatialmath import SE3
 from scipy.linalg import pinv
@@ -395,7 +394,7 @@ def test_ik_solvers():
     
     # Test senaryoları
     test_positions = [
-        [50, 50, 50],    # Önde bir nokta
+        [800, 800, 800],    # Önde bir nokta
         [55, 55, 55],    # Yanda bir nokta
         [60, 60, 60],    # Yukarıda bir nokta
         [100, 100, 100], # Farklı bir nokta

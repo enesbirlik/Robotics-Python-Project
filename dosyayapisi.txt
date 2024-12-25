@@ -1,0 +1,39 @@
+ur5_robot_project/
+│
+├── src/
+│   ├── __init__.py
+│   ├── core/
+│   │   ├── __init__.py
+│   │   ├── robot_base.py        # Temel robot sınıfı
+│   │   ├── robot_confid.py      # Robot konfigürasyonu
+│   │   ├── kinematics.py        # Kinematik hesaplamalar
+│   │   └── utils.py             # Yardımcı fonksiyonlar
+│   │
+│   ├── solvers/
+│   │   ├── __init__.py
+│   │   ├── solver_base.py       # Temel solver sınıfı
+│   │   ├── ccd_solver.py        # CCD metodu
+│   │   ├── fabrik_solver.py     # FABRIK metodu
+│   │   ├── jacobian_solver.py   # Jacobian metodu
+│   │   ├── newrap_solver.py     # Newton Raphson metodu
+│   │   └── dls_solver.py        # DLS metodu
+│   │
+│   ├── trajectory/
+│   │   ├── __init__.py
+│   │   ├── trajectory_base.py   # Temel yörünge sınıfı
+│   │   ├── linear.py           # Doğrusal yörünge
+│   │   └── polynomial.py       # Polinom yörünge
+│   │
+│   └── visualization/
+│       ├── __init__.py
+│       ├── visualizer_base.py   # Temel görselleştirme sınıfı
+│       └── matplotlib_vis.py    # Matplotlib tabanlı görselleştirme
+│
+├── gui/
+│   burayı en son yapalım o yüzden şimdilik boş kalsın içi
+│
+│
+└── examples/
+    ├── test_solvers.py
+    ├── basic_goal.py
+    └── trajectory_following.py
