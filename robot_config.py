@@ -20,8 +20,8 @@ def get_custom_robot_parameters():
     # [a, alpha, d, offset] MY ROBOT PARAMETERS sf130
     dh_params = [
         [0,     0,     100,    0],
-        [np.pi/2,     0,     100,    np.pi/2],
-        [-np.pi/2,     30,     0,    0],
+        [0,     np.pi/2,     100,    np.pi/2],
+        [30,     -np.pi/2,     0,    0],
     ]        
 
     joint_types = "RPR"
