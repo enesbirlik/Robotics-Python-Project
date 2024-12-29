@@ -17,17 +17,26 @@ def get_ur5_parameters():
     return dh_params, joint_types, qlim
 
 def get_custom_robot_parameters():
-    # [a, alpha, d, offset] MY ROBOT PARAMETERS sf130
+    # [a, alpha, d, offset] MY ROBOT PARAMETERS sf139
     dh_params = [
-        [0,     0,     100,    0],
-        [0,     np.pi/2,     100,    np.pi/2],
-        [30,     -np.pi/2,     0,    0],
+        [0,     0,          50,    0],
+        [20,    0,          0,     0],
+        [20,    np.pi,      40,    0],
+        [0,     0,          10,    0],
+        [0,     -np.pi/2,   0,     0],
+        [0,     np.pi/2,    0,     0],
     ]        
 
-    joint_types = "RPR"
-    qlim = [[np.radians(-180), np.radians(180)],
-            [0, 50],
-            [np.radians(-180), np.radians(180)]]
+    joint_types = "RRPRRR"
+
+    qlim = [
+        [-np.pi, np.pi],
+        [-np.pi, np.pi],
+        [-40,      40],
+        [-np.pi, np.pi],
+        [-np.pi, np.pi],
+        [-np.pi, np.pi]
+    ]
     
     return dh_params, joint_types, qlim
 
@@ -75,8 +84,8 @@ def get_kr6_parameters():
 
 def get_test_positions():
     return [
-        [200, 400, 200],    # First position
-        [300, 300, 300]       # Goal position   
+        [0, 60, 100],    # First position
+        [40, 0, 100]     # Goal position   
     ]
 
 def get_solver_parameters():

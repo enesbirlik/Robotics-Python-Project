@@ -1,5 +1,5 @@
 from robot_manipulator import RobotManipulator
-from robot_config import get_ur5_parameters, get_test_positions, get_solver_parameters
+from robot_config import get_ur5_parameters, get_test_positions, get_solver_parameters,get_custom_robot_parameters
 from ik_solvers import IKSolver
 import numpy as np
 import time
@@ -9,7 +9,7 @@ def interpolate_positions(start, end, steps):
 
 def test_ik_solvers():
     # Get robot parameters
-    dh_params, joint_types, qlim = get_ur5_parameters()
+    dh_params, joint_types, qlim = get_custom_robot_parameters()
     robot = RobotManipulator(dh_params, joint_types, qlim)
     
     # Get test positions and solver parameters
@@ -17,7 +17,7 @@ def test_ik_solvers():
     solver_params = get_solver_parameters()
     
     # Number of interpolation steps between each pair of points
-    steps = 100
+    steps = 5
     
     # Interpolate positions
     interpolated_positions = []
@@ -29,10 +29,11 @@ def test_ik_solvers():
     
     # Define solvers
     solvers = {
-        # 'CCD': IKSolver.ccd_solver,
-        # 'FABRIK': IKSolver.fabrik_solver,
+        'CCD': IKSolver.ccd_solver,
+        'FABRIK': IKSolver.fabrik_solver,
         'Jacobian': IKSolver.jacobian_solver,
-        'DLS': IKSolver.dls_solver
+        'DLS': IKSolver.dls_solver,
+        'Newton-Raphson': IKSolver.newton_raphson_solver
     }
     
     # Compare solver performances

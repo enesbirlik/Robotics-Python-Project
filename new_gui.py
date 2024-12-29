@@ -250,40 +250,118 @@ class ModernRobotGUI:
                                       font=ctk.CTkFont(size=12))
         self.log_text.pack(fill="both", expand=True, padx=5, pady=5)
 
-    def create_dh_table(self, event=None):  # event parametresini ekledik
+    def create_dh_table(self, event=None):
         # Önce mevcut girişleri temizle
         for widget in self.dh_frame.winfo_children():
             widget.destroy()
-            
+                
         self.dh_entries = []
         num_joints = int(self.joint_count.get())
-        
+            
         for i in range(num_joints):
             row_entries = {}
-            
+                
             # Joint type selection
             joint_type = ctk.CTkOptionMenu(self.dh_frame, values=['R', 'P'], width=70)
             joint_type.grid(row=i+1, column=0, padx=2, pady=2)
             joint_type.set(self.joint_types[i] if i < len(self.joint_types) else 'R')
+            joint_type.configure(command=lambda t=joint_type, idx=i: self.update_joint_limits(t, idx))
             row_entries['type'] = joint_type
-            
+                
             # DH parameters
             for j in range(4):
                 entry = ctk.CTkEntry(self.dh_frame, width=70)
                 entry.grid(row=i+1, column=j+1, padx=2, pady=2)
                 value = self.dh_params[i][j] if i < len(self.dh_params) else 0.0
                 entry.insert(0, f"{value:.2f}")
+                entry.bind('<FocusOut>', lambda e, idx=i: self.update_robot_config())
                 row_entries[f'dh{j}'] = entry
-            
+                
             # Joint limits
             for j in range(2):
                 entry = ctk.CTkEntry(self.dh_frame, width=70)
                 entry.grid(row=i+1, column=j+5, padx=2, pady=2)
                 value = self.qlim[i][j] if i < len(self.qlim) else (-6.28 if j == 0 else 6.28)
                 entry.insert(0, f"{value:.2f}")
+                entry.bind('<FocusOut>', lambda e, idx=i: self.update_robot_config())
                 row_entries[f'limit{j}'] = entry
-            
+                
             self.dh_entries.append(row_entries)
+
+    def update_robot_config(self):
+        """DH tablosundaki değişiklikleri robota uygula"""
+        try:
+            new_dh_params = []
+            new_joint_types = ""
+            new_qlim = []
+                
+            for entries in self.dh_entries:
+                # Joint tipi
+                new_joint_types += entries['type'].get()
+                    
+                # DH parametreleri
+                dh_row = []
+                for i in range(4):
+                    try:
+                        value = float(entries[f'dh{i}'].get())
+                        dh_row.append(value)
+                    except ValueError:
+                        self.log_message(f"Invalid DH parameter value")
+                        return
+                new_dh_params.append(dh_row)
+                    
+                # Eklem limitleri
+                limits = []
+                for i in range(2):
+                    try:
+                        value = float(entries[f'limit{i}'].get())
+                        limits.append(value)
+                    except ValueError:
+                        self.log_message(f"Invalid joint limit value")
+                        return
+                new_qlim.append(limits)
+                
+            # Değerleri güncelle
+            self.dh_params = new_dh_params
+            self.joint_types = new_joint_types
+            self.qlim = new_qlim
+                
+            # Robot'u güncelle
+            self.robot = RobotManipulator(self.dh_params, self.joint_types, self.qlim)
+            self.reset_robot()
+                
+            self.log_message("Robot configuration updated successfully")
+                
+        except Exception as e:
+            self.log_message(f"Error updating robot configuration: {str(e)}")
+
+
+    def update_joint_limits(self, joint_type_menu, index):
+        """Joint tipine göre limit birimlerini güncelle"""
+        try:
+            joint_type = joint_type_menu.get()
+            entries = self.dh_entries[index]
+                
+            if joint_type == 'R':
+                # Revolute joint için radyan cinsinden default limitler
+                if float(entries['limit0'].get()) == 0.0 and float(entries['limit1'].get()) == 100.0:
+                    entries['limit0'].delete(0, 'end')
+                    entries['limit1'].delete(0, 'end')
+                    entries['limit0'].insert(0, str(-np.pi))
+                    entries['limit1'].insert(0, str(np.pi))
+            else:
+                # Prismatic joint için mm cinsinden default limitler
+                if abs(float(entries['limit0'].get())) > 10 or abs(float(entries['limit1'].get())) > 10:
+                    entries['limit0'].delete(0, 'end')
+                    entries['limit1'].delete(0, 'end')
+                    entries['limit0'].insert(0, "0.0")
+                    entries['limit1'].insert(0, "100.0")
+                    
+            # Robot konfigürasyonunu güncelle
+            self.update_robot_config()
+                
+        except Exception as e:
+            self.log_message(f"Error updating joint limits: {str(e)}")
 
     def load_robot_config(self, robot_type):
         try:
@@ -295,20 +373,20 @@ class ModernRobotGUI:
                 self.dh_params, self.joint_types, self.qlim = get_puma560_parameters()
             elif robot_type == 'KR6':
                 self.dh_params, self.joint_types, self.qlim = get_kr6_parameters()
-            
+                
             # Joint sayısını güncelle
             self.num_joints = len(self.joint_types)
             self.joint_count.set(str(self.num_joints))
-            
+                
             # Önce DH tablosunu güncelle
             self.create_dh_table()
-            
-            # Sonra robot'u güncelle
+                
+            # Robot'u güncelle
             self.robot = RobotManipulator(self.dh_params, self.joint_types, self.qlim)
             self.reset_robot()
-            
+                
             self.log_message(f"Loaded {robot_type} configuration")
-            
+                
         except Exception as e:
             self.log_message(f"Error loading robot configuration: {str(e)}")
 
@@ -359,7 +437,6 @@ class ModernRobotGUI:
 
     def solve_ik(self):
         try:
-            # Hedef pozisyonu al
             target_pos = np.array([
                 float(self.target_entries['x'].get()),
                 float(self.target_entries['y'].get()),
@@ -373,18 +450,26 @@ class ModernRobotGUI:
             )
             
             if result and 'joint_angles' in result:
-                # Çözümü visualize et
-                self.robot.visualize(result['joint_angles'], block=False)
+                joint_values = result['joint_angles']
+                self.robot.visualize(joint_values, block=False)
                 
                 # Metrikleri güncelle
                 self.update_metrics(result)
-                self.log_message(f"Solution found: Joint angles (deg) = "
-                            f"{[f'{np.degrees(q):.2f}' for q in result['joint_angles']]}")
+                
+                # Log mesajını joint tiplerine göre oluştur
+                log_msg = "Solution found:\n"
+                for i, (val, jtype) in enumerate(zip(joint_values, self.robot.joint_types)):
+                    if jtype == 'R':
+                        log_msg += f"Joint {i+1} (R): {np.degrees(val):.2f}°\n"
+                    else:
+                        log_msg += f"Joint {i+1} (P): {val:.2f}mm\n"
+                
+                self.log_message(log_msg)
             else:
                 self.log_message("No solution found")
                 
         except Exception as e:
-            self.log_message(f"Error solving IK: {str(e)}")
+           self.log_message(f"Error solving IK: {str(e)}")
 
     def animate_trajectory(self):
         if not self.trajectory_points:

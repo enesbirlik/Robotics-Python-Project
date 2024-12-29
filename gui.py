@@ -3,7 +3,7 @@ import tkinter as tk
 from tkinter import messagebox
 import numpy as np
 from robot_manipulator import RobotManipulator
-from robot_config import get_ur5_parameters, get_solver_parameters
+from robot_config import get_ur5_parameters, get_solver_parameters, get_custom_robot_parameters
 import json
 import os
 
@@ -19,7 +19,7 @@ class ModernRobotGUI:
         self.root.geometry("1200x800")
         
         # Default robot parametreleri
-        self.dh_params, self.joint_types, self.qlim = get_ur5_parameters()
+        self.dh_params, self.joint_types, self.qlim = get_custom_robot_parameters()
         self.num_joints = len(self.joint_types)
         self.solver_params = get_solver_parameters()
         self.trajectory_points = []

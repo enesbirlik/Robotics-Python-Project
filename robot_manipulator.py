@@ -11,7 +11,8 @@ class RobotManipulator:
         self.qlim = np.array(qlim)
         self.robot = self._create_robot()
         self.solution_metrics = {}
-        
+        self.units = ['deg' if jtype == 'R' else 'mm' for jtype in joint_types]
+
     def _create_robot(self):
         try:
             links = []
@@ -141,30 +142,20 @@ class RobotManipulator:
             print("No solution metrics available")
             return
             
-        # Handle single solution case
         if isinstance(self.solution_metrics, dict):
             if 'joint_angles' in self.solution_metrics:
-                # Single solution metrics
                 metrics = self.solution_metrics
                 if metrics is not None:
                     print(f"Iterations: {metrics.get('iterations', 'N/A')}")
                     print(f"Solution Time: {metrics.get('time', 0):.4f} seconds")
                     print(f"Target Distance: {metrics.get('error', 0):.4f} mm")
                     if metrics.get('joint_angles') is not None:
-                        joint_angles = np.array(metrics['joint_angles'])
-                        print(f"Joint Angles (degrees): {np.degrees(joint_angles)}")
+                        joint_values = np.array(metrics['joint_angles'])
+                        print("Joint Values:")
+                        for i, (val, unit, jtype) in enumerate(zip(joint_values, self.units, self.joint_types)):
+                            if jtype == 'R':
+                                print(f"Joint {i+1} (R): {np.degrees(val):.2f} deg")
+                            else:
+                                print(f"Joint {i+1} (P): {val:.2f} mm")
                     else:
-                        print("Joint Angles: None")
-            else:
-                # Multiple solutions for different methods
-                for method, metrics in self.solution_metrics.items():
-                    print(f"\n{method.upper()}:")
-                    if metrics is not None:
-                        print(f"Iterations: {metrics.get('iterations', 'N/A')}")
-                        print(f"Solution Time: {metrics.get('time', 0):.4f} seconds")
-                        print(f"Target Distance: {metrics.get('error', 0):.4f} mm")
-                        if metrics.get('joint_angles') is not None:
-                            joint_angles = np.array(metrics['joint_angles'])
-                            print(f"Joint Angles (degrees): {np.degrees(joint_angles)}")
-                        else:
-                            print("Joint Angles: None")
+                        print("Joint Values: None")
