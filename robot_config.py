@@ -90,8 +90,8 @@ def get_test_positions():
 
 def get_solver_parameters():
     return {
-        'max_iter': 1000,
-        'tolerance': 1e-3,
+        'max_iter': 2000,
+        'tolerance': 1e-2,
         'lambda_val': 0.2,  # For DLS
         'alpha': 0.5        # For Jacobian
     }
