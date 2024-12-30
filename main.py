@@ -29,8 +29,8 @@ def test_ik_solvers():
     
     # Define solvers
     solvers = {
-        'CCD': IKSolver.ccd_solver,
-        'FABRIK': IKSolver.fabrik_solver,
+        # 'CCD': IKSolver.ccd_solver,
+        # 'FABRIK': IKSolver.fabrik_solver,
         'Jacobian': IKSolver.jacobian_solver,
         'DLS': IKSolver.dls_solver,
         'Newton-Raphson': IKSolver.newton_raphson_solver

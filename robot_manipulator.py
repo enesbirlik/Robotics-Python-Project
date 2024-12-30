@@ -2,7 +2,7 @@ from roboticstoolbox import DHRobot, RevoluteDH, PrismaticDH
 from spatialmath import SE3
 import numpy as np
 import time
-from ik_solvers import IKSolver  # IKSolver sınıfını içe aktar
+from ik_solvers import IKSolver
 
 class RobotManipulator:
     def __init__(self, dh_params, joint_types, qlim):
@@ -19,23 +19,31 @@ class RobotManipulator:
             for i, (dh_params, joint_type, joint_limits) in enumerate(
                 zip(self.DH, self.joint_types, self.qlim)):
                 
-                a, alpha, d, offset = dh_params
+                d, a, alpha, offset = dh_params
                 
                 if joint_type == "R":
                     link = RevoluteDH(
-                        a=a, alpha=alpha, d=d, offset=offset, qlim=joint_limits
+                        d=d,
+                        a=a,
+                        alpha=alpha,
+                        offset=offset,
+                        qlim=joint_limits
                     )
                 elif joint_type == "P":
                     link = PrismaticDH(
-                        a=a, alpha=alpha, theta=offset, qlim=joint_limits
+                        # Prizmatik eklem için
+                        theta=offset,  # Sabit açı
+                        a=a,          # Link uzunluğu
+                        alpha=alpha,  # Eksen açısı 
+                        qlim=joint_limits
                     )
                 else:
                     raise ValueError(f"Invalid joint type '{joint_type}' at position {i}")
                     
                 links.append(link)
-                
-            return DHRobot(links, name="My_Robot")
             
+            return DHRobot(links, name="Robot")
+                
         except Exception as e:
             print(f"Robot creation error: {str(e)}")
             return None
@@ -44,13 +52,17 @@ class RobotManipulator:
         try:
             if not isinstance(joint_angles, np.ndarray):
                 joint_angles = np.array(joint_angles)
-                
-            if joint_angles.size < len(self.joint_types):
-                q = np.zeros(len(self.joint_types))
-                q[:joint_angles.size] = joint_angles
-            else:
-                q = joint_angles
-                
+            
+            # Prizmatik eklemler için değerleri düzelt
+            q = np.zeros(len(self.joint_types))
+            for i, (val, jtype) in enumerate(zip(joint_angles, self.joint_types)):
+                if jtype == 'P':
+                    # Prizmatik eklem için d parametresini güncelle
+                    q[i] = val
+                else:
+                    # Revolute eklem için theta parametresini güncelle
+                    q[i] = val
+                    
             return self.robot.fkine(q)
         except Exception as e:
             print(f"Forward kinematics error: {str(e)}")
@@ -71,14 +83,12 @@ class RobotManipulator:
         solver_func = solvers[method]
         start_time = time.time()
         
-        # Her solver için gerekli parametreleri ayır
         solver_kwargs = {}
         if 'max_iter' in kwargs:
             solver_kwargs['max_iter'] = kwargs['max_iter']
         if 'tolerance' in kwargs:
             solver_kwargs['tolerance'] = kwargs['tolerance']
         
-        # Özel parametreler
         if method == 'dls' and 'lambda_val' in kwargs:
             solver_kwargs['lambda_val'] = kwargs['lambda_val']
         elif method == 'jacobian' and 'alpha' in kwargs:
@@ -110,26 +120,52 @@ class RobotManipulator:
             return None
         
     def visualize(self, joint_angles, gui=None, block=True):
-        """Visualize a single robot configuration"""
         try:
+            if self.robot is None:
+                print("Error: Robot not initialized properly")
+                return
+                
             if isinstance(joint_angles, (int, float)):
                 joint_angles = np.zeros(len(self.joint_types))
-            self.robot.plot(joint_angles, block=block)
+                
+            q = np.array(joint_angles, dtype=float)
+            
+            # Ölçekleme kaldırıldı - Prizmatik eklemler mm cinsinden kalacak
+            print("\nJoint Values:")
+            for i, (val, jtype) in enumerate(zip(q, self.joint_types)):
+                print(f"Joint {i+1} ({jtype}): {val}")
+            
+            self.robot.plot(q, 
+                        block=block,
+                        jointaxes=True,
+                        shadow=False,
+                        eeframe=True)
+                    
         except Exception as e:
             print(f"Visualization error: {str(e)}")
 
     def animate_trajectory(self, trajectory):
-        """Animate robot through a trajectory of joint angles"""
         try:
             if not isinstance(trajectory, np.ndarray):
                 trajectory = np.array(trajectory)
             
-            self.robot.plot(trajectory,
+            # Görselleştirme için yörüngeyi kopyala
+            traj = np.array(trajectory, dtype=float)
+            
+            # Prizmatik eklemler için değerleri düzelt
+            for i, jtype in enumerate(self.joint_types):
+                if jtype == 'P':
+                    # Prizmatik eklemler için metre cinsine çevir
+                    traj[:, i] = trajectory[:, i] / 100.0  # mm to 0.01m için daha küçük faktör
+            
+            # Robot animasyon özelliklerini ayarla
+            self.robot.plot(traj,
                         backend='pyplot',
                         dt=0.05,
                         block=False,
                         eeframe=True,
-                        jointaxes=True)
+                        jointaxes=True,
+                        shadow=False)
             
         except Exception as e:
             print(f"\nAnimation error: {str(e)}")

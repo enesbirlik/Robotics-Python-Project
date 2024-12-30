@@ -3,7 +3,7 @@ import tkinter as tk
 from tkinter import messagebox
 import numpy as np
 from robot_manipulator import RobotManipulator
-from robot_config import get_ur5_parameters, get_solver_parameters, get_puma560_parameters, get_kr6_parameters, get_custom_robot_parameters
+from robot_config import get_ur5_parameters, get_solver_parameters, get_scara_parameters, get_kr6_parameters, get_custom_robot_parameters
 import json
 import os
 
@@ -70,7 +70,7 @@ class ModernRobotGUI:
         ctk.CTkLabel(robot_frame, text="Robot Type:",
                     font=ctk.CTkFont(size=14)).pack(side="left", padx=5)
         self.robot_type = ctk.CTkOptionMenu(robot_frame,
-                                        values=['Custom', 'UR5', 'Puma560', 'KR6'],
+                                        values=['Custom', 'UR5', 'SCARA', 'KR6'],
                                         command=self.load_robot_config,
                                         font=ctk.CTkFont(size=14),
                                         width=120)
@@ -369,8 +369,8 @@ class ModernRobotGUI:
                 self.dh_params, self.joint_types, self.qlim = get_custom_robot_parameters()
             elif robot_type == 'UR5':
                 self.dh_params, self.joint_types, self.qlim = get_ur5_parameters()
-            elif robot_type == 'Puma560':
-                self.dh_params, self.joint_types, self.qlim = get_puma560_parameters()
+            elif robot_type == 'SCARA':
+                self.dh_params, self.joint_types, self.qlim = get_scara_parameters()
             elif robot_type == 'KR6':
                 self.dh_params, self.joint_types, self.qlim = get_kr6_parameters()
                 
