@@ -23,18 +23,17 @@ class RobotManipulator:
                 
                 if joint_type == "R":
                     link = RevoluteDH(
-                        d=d,
-                        a=a,
-                        alpha=alpha,
-                        offset=offset,
+                        d=d,           # Link offset
+                        a=a,          # Link length
+                        alpha=alpha,  # Link twist
+                        offset=offset,# Joint offset
                         qlim=joint_limits
                     )
                 elif joint_type == "P":
                     link = PrismaticDH(
-                        # Prizmatik eklem için
-                        theta=offset,  # Sabit açı
-                        a=a,          # Link uzunluğu
-                        alpha=alpha,  # Eksen açısı 
+                        theta=offset, # Fixed rotation
+                        a=a,         # Link length
+                        alpha=alpha, # Link twist
                         qlim=joint_limits
                     )
                 else:
@@ -152,11 +151,11 @@ class RobotManipulator:
             # Görselleştirme için yörüngeyi kopyala
             traj = np.array(trajectory, dtype=float)
             
-            # Prizmatik eklemler için değerleri düzelt
-            for i, jtype in enumerate(self.joint_types):
-                if jtype == 'P':
-                    # Prizmatik eklemler için metre cinsine çevir
-                    traj[:, i] = trajectory[:, i] / 100.0  # mm to 0.01m için daha küçük faktör
+            # Ölçekleme işlemini kaldır
+            # Önceki kod:
+            # for i, jtype in enumerate(self.joint_types):
+            #     if jtype == 'P':
+            #         traj[:, i] = trajectory[:, i] / 100.0
             
             # Robot animasyon özelliklerini ayarla
             self.robot.plot(traj,

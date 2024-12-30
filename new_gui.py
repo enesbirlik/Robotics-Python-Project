@@ -522,22 +522,42 @@ class ModernRobotGUI:
         self.point_listbox.delete("1.0", "end")
         self.log_message("Cleared all trajectory points")
 
-    def interpolate_trajectory(self, steps=50):
+    def interpolate_trajectory(self, base_steps=50):
         if len(self.trajectory_points) < 2:
             self.log_message("Need at least 2 points for trajectory")
             return None
             
         interpolated_points = []
+        distances = []
+        
+        # Calculate distances between consecutive points
+        for i in range(len(self.trajectory_points) - 1):
+            start = np.array(self.trajectory_points[i])
+            end = np.array(self.trajectory_points[i + 1])
+            distance = np.linalg.norm(end - start)
+            distances.append(distance)
+        
+        # Calculate total path length
+        total_distance = sum(distances)
+        
+        # Interpolate points with proportional steps
         for i in range(len(self.trajectory_points) - 1):
             start = np.array(self.trajectory_points[i])
             end = np.array(self.trajectory_points[i + 1])
             
-            for t in np.linspace(0, 1, steps):
+            # Calculate proportional steps based on segment distance
+            segment_steps = max(
+                int((distances[i] / total_distance) * base_steps),
+                30  # Minimum steps per segment
+            )
+            
+            for t in np.linspace(0, 1, segment_steps):
                 point = start + (end - start) * t
                 interpolated_points.append(point)
-                
+        
+        self.log_message(f"Generated trajectory with {len(interpolated_points)} points")
         return interpolated_points
-    
+        
     def solve_trajectory(self):
         interpolated_points = self.interpolate_trajectory()
         if not interpolated_points:

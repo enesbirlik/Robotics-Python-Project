@@ -87,7 +87,7 @@ def get_test_positions():
 def get_solver_parameters():
     """Solver parameters for inverse kinematics"""
     return {
-        'max_iter': 2000,      # Maximum iterations
+        'max_iter': 1000,      # Maximum iterations
         'tolerance': 1e-2,     # Error tolerance
         'lambda_val': 0.2,     # Damping factor for DLS
         'alpha': 0.5           # Step size for Jacobian
