@@ -116,138 +116,98 @@ class IKSolver:
             return None, max_iter
 
     @staticmethod
-    def fabrik_solver(robot, target_position, max_iter=100, tolerance=1e-3):
-        """Forward And Backward Reaching Inverse Kinematics (FABRIK) yöntemi"""
+    def fabrik_solver(robot, target_position, max_iter=100, tolerance=10):
+        """FABRIK (Forward And Backward Reaching IK) Implementation"""
         try:
+            # 1. Initialize
             num_joints = len(robot.joint_types)
             q = np.zeros(num_joints)
             
-            # İlk olarak tüm joint pozisyonlarını hesapla
-            joint_positions = [np.zeros(3)]  # Base position
-            current_transform = np.eye(4)
-            transforms = [current_transform]
+            print("\n=== FABRIK Debug Info ===")
+            print(f"Target position: {target_position}")
             
-            # Her eklemin pozisyonunu hesapla
+            # Get initial joint positions
+            joint_positions = [np.zeros(3)]  # Base position
+            print("\nInitial Joint Positions:")
             for i in range(num_joints):
                 pose = robot.forward_kinematics(q[:i+1])
-                if pose is not None:
-                    joint_positions.append(pose.t)
-                    transforms.append(pose.A)  # Homogeneous transformation matrix
-                else:
-                    print(f"Forward kinematics failed for joint {i+1}")
+                if pose is None:
+                    print(f"Failed to get position for joint {i}")
                     return None, max_iter
+                joint_positions.append(pose.t)
+                print(f"Joint {i}: {joint_positions[-1]}")
             
-            # Link uzunluklarını hesapla
+            # Calculate link lengths
             link_lengths = []
+            print("\nLink Lengths:")
             for i in range(len(joint_positions)-1):
                 length = np.linalg.norm(joint_positions[i+1] - joint_positions[i])
-                if length < 1e-6:
-                    length = 1e-6
-                link_lengths.append(length)
-            
+                link_lengths.append(max(length, 10))
+                print(f"Link {i}: {link_lengths[-1]:.3f}")
+                
             total_length = sum(link_lengths)
-            target_distance = np.linalg.norm(target_position)
+            target_dist = np.linalg.norm(target_position)
+            print(f"\nTotal chain length: {total_length:.3f}")
+            print(f"Distance to target: {target_dist:.3f}")
             
-            # Hedefin ulaşılabilir olup olmadığını kontrol et
-            if target_distance > total_length:
-                scale = total_length / target_distance
-                target_position = target_position * scale
+            # Check reachability
+            if target_dist > total_length:
+                print("Target out of reach!")
+                return None, max_iter
+                
+            base_pos = joint_positions[0].copy()
             
+            # Main FABRIK Loop
             for iteration in range(max_iter):
-                # Mevcut uç nokta pozisyonunu al
-                current_end = joint_positions[-1]
-                error = np.linalg.norm(current_end - target_position)
+                print(f"\nIteration {iteration+1}")
                 
-                if error < tolerance:
-                    # Başarılı çözüm - eklem açılarını hesapla
-                    joint_angles = np.zeros(num_joints)
-                    
-                    for i in range(num_joints):
-                        if i < num_joints - 1:  # Son eklem hariç
-                            v1 = joint_positions[i+1] - joint_positions[i]
-                            v2 = joint_positions[i+2] - joint_positions[i+1]
-                            
-                            if np.linalg.norm(v1) > 1e-6 and np.linalg.norm(v2) > 1e-6:
-                                if robot.joint_types[i] == 'R':
-                                    # Revolute joint için açı hesapla
-                                    v1_norm = v1 / np.linalg.norm(v1)
-                                    v2_norm = v2 / np.linalg.norm(v2)
-                                    
-                                    # Z ekseni etrafındaki açıyı hesapla
-                                    angle = np.arctan2(np.cross(v1_norm, v2_norm)[2],
-                                                    np.dot(v1_norm, v2_norm))
-                                    joint_angles[i] = np.clip(angle, robot.qlim[i][0], robot.qlim[i][1])
-                                else:
-                                    # Prismatic joint için uzaklık hesapla
-                                    distance = np.linalg.norm(v2)
-                                    joint_angles[i] = np.clip(distance, robot.qlim[i][0], robot.qlim[i][1])
-                    
-                    return joint_angles, iteration
-                
-                # BACKWARD REACHING
+                # Forward reaching
                 joint_positions[-1] = target_position.copy()
-                
+                print("\nForward reaching:")
                 for i in range(len(joint_positions)-2, -1, -1):
                     direction = joint_positions[i] - joint_positions[i+1]
-                    dir_norm = np.linalg.norm(direction)
-                    if dir_norm > 1e-6:
-                        direction = direction / dir_norm
-                        # Eklem tipine göre hareket sınırlaması
-                        if i < num_joints and robot.joint_types[i] == 'P':
-                            # Prismatic joint için uzaklık sınırlaması
-                            move_dist = np.clip(dir_norm, robot.qlim[i][0], robot.qlim[i][1])
-                        else:
-                            move_dist = link_lengths[i]
-                        joint_positions[i] = joint_positions[i+1] + direction * move_dist
+                    distance = link_lengths[i]
+                    
+                    if np.linalg.norm(direction) > 10:
+                        direction = direction / np.linalg.norm(direction)
+                        joint_positions[i] = joint_positions[i+1] + direction * distance
+                    print(f"Joint {i} new pos: {joint_positions[i]}")
                 
-                # FORWARD REACHING
-                joint_positions[0] = np.zeros(3)
-                
+                # Backward reaching
+                joint_positions[0] = base_pos.copy()
+                print("\nBackward reaching:")
                 for i in range(len(joint_positions)-1):
                     direction = joint_positions[i+1] - joint_positions[i]
-                    dir_norm = np.linalg.norm(direction)
-                    if dir_norm > 1e-6:
-                        direction = direction / dir_norm
-                        # Eklem tipine göre hareket sınırlaması
-                        if i < num_joints and robot.joint_types[i] == 'P':
-                            # Prismatic joint için uzaklık sınırlaması
-                            move_dist = np.clip(dir_norm, robot.qlim[i][0], robot.qlim[i][1])
-                        else:
-                            move_dist = link_lengths[i]
-                        joint_positions[i+1] = joint_positions[i] + direction * move_dist
+                    distance = link_lengths[i]
                     
-                    # Revolute eklemler için açı sınırlaması
-                    if i < num_joints and robot.joint_types[i] == 'R':
-                        if i < len(joint_positions) - 2:
+                    if np.linalg.norm(direction) > 10:
+                        direction = direction / np.linalg.norm(direction)
+                        joint_positions[i+1] = joint_positions[i] + direction * distance
+                    print(f"Joint {i+1} new pos: {joint_positions[i+1]}")
+                
+                error = np.linalg.norm(joint_positions[-1] - target_position)
+                print(f"\nCurrent error: {error:.6f}")
+                
+                if error < tolerance:
+                    print("\nConverged!")
+                    q_new = np.zeros(num_joints)
+                    for i in range(num_joints):
+                        if robot.joint_types[i] == 'R':
                             v1 = joint_positions[i+1] - joint_positions[i]
-                            v2 = joint_positions[i+2] - joint_positions[i+1]
-                            
-                            if np.linalg.norm(v1) > 1e-6 and np.linalg.norm(v2) > 1e-6:
-                                v1_norm = v1 / np.linalg.norm(v1)
-                                v2_norm = v2 / np.linalg.norm(v2)
-                                
-                                angle = np.arctan2(np.cross(v1_norm, v2_norm)[2],
-                                                np.dot(v1_norm, v2_norm))
-                                
-                                # Açıyı limitler içinde tut
-                                angle = np.clip(angle, robot.qlim[i][0], robot.qlim[i][1])
-                                
-                                # Yeni pozisyonu hesapla
-                                rotation_matrix = np.array([
-                                    [np.cos(angle), -np.sin(angle), 0],
-                                    [np.sin(angle), np.cos(angle), 0],
-                                    [0, 0, 1]
-                                ])
-                                new_pos = np.dot(rotation_matrix, v1_norm) * link_lengths[i]
-                                joint_positions[i+1] = joint_positions[i] + new_pos
+                            v2 = joint_positions[i+2] - joint_positions[i+1] if i < num_joints-1 else v1
+                            angle = np.arctan2(np.cross(v1, v2)[2], np.dot(v1, v2))
+                            q_new[i] = np.clip(angle, robot.qlim[i][0], robot.qlim[i][1])
+                        else:
+                            distance = np.linalg.norm(joint_positions[i+1] - joint_positions[i])
+                            q_new[i] = np.clip(distance, robot.qlim[i][0], robot.qlim[i][1])
+                    print(f"Final joint angles: {q_new}")
+                    return q_new, iteration
             
-            print(f"FABRIK failed to converge after {max_iter} iterations")
+            print("\nMax iterations reached without aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa")
             return None, max_iter
             
         except Exception as e:
-            print(f"FABRIK çözüm hatası: {str(e)}")
-            import traceback
-            traceback.print_exc()
+            print(f"FABRIK solver error: {str(e)}")
             return None, max_iter
 
     @staticmethod
