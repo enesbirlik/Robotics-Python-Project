@@ -18,21 +18,21 @@ def get_ur5_parameters():
 def get_custom_robot_parameters():
     """Custom Robot Parameters"""
     dh_params = [
-        [60,    0,      0,        0],    # Joint 1 (R)
-        [0,     20,     0,        0],    # Joint 2 (R)
-        [0,     20,     np.pi,    0],    # Joint 3 (P)
-        [40,    0,      0,        0],    # Joint 4 (R)
-        [10,    0,     -np.pi/2,  0],    # Joint 5 (R)
-        [0,     0,      np.pi/2,  0]     # Joint 6 (R)
+        [0,    0,            30,     0],    # Joint 1 (R)
+        [20,   np.pi/2,            0,      0],    # Joint 2 (R)
+        [20,   np.pi,        40,     0],    # Joint 3 (P)
+        # [0,    0,            40,     0],    # Joint 4 (R)
+        # [0,    -np.pi/2,     0,      0],    # Joint 5 (R)
+        # [0,    np.pi/2,      0,      0]     # Joint 6 (R)
     ]        
-    joint_types = "RRPRRR"
+    joint_types = "RRP"
     qlim = [
         [-np.pi, np.pi],     # Joint 1 (R)
         [-np.pi, np.pi],     # Joint 2 (R)
-        [-40,    40],        # Joint 3 (P) mm
-        [-np.pi, np.pi],     # Joint 4 (R)
-        [-np.pi, np.pi],     # Joint 5 (R)
-        [-np.pi, np.pi]      # Joint 6 (R)
+        [-100,    100],        # Joint 3 (P) mm
+        # [-np.pi, np.pi],     # Joint 4 (R)
+        # [-np.pi, np.pi],     # Joint 5 (R)
+        # [-np.pi, np.pi]      # Joint 6 (R)
     ]
     
     return dh_params, joint_types, qlim

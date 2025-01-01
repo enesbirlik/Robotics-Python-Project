@@ -4,8 +4,6 @@ from tkinter import messagebox
 import numpy as np
 from robot_manipulator import RobotManipulator
 from robot_config import get_ur5_parameters, get_solver_parameters, get_scara_parameters, get_kr6_parameters, get_custom_robot_parameters
-import json
-import os
 
 class ModernRobotGUI:
     def __init__(self):

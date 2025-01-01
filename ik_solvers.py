@@ -115,81 +115,49 @@ class IKSolver:
             print(f"CCD çözüm hatası: {str(e)}")
             return None, max_iter
 
+
     @staticmethod
-    def fabrik_solver(robot, target_position, max_iter=100, tolerance=10):
-        """FABRIK (Forward And Backward Reaching IK) Implementation"""
+    def fabrik_solver(robot, target_position, max_iter=100, tolerance=1e-3):
+        """FABRIK (Forward And Backward Reaching Inverse Kinematics)"""
         try:
-            # 1. Initialize
             num_joints = len(robot.joint_types)
             q = np.zeros(num_joints)
             
-            print("\n=== FABRIK Debug Info ===")
-            print(f"Target position: {target_position}")
-            
-            # Get initial joint positions
+            # 1. Initialize
             joint_positions = [np.zeros(3)]  # Base position
-            print("\nInitial Joint Positions:")
             for i in range(num_joints):
                 pose = robot.forward_kinematics(q[:i+1])
                 if pose is None:
-                    print(f"Failed to get position for joint {i}")
                     return None, max_iter
                 joint_positions.append(pose.t)
-                print(f"Joint {i}: {joint_positions[-1]}")
             
-            # Calculate link lengths
-            link_lengths = []
-            print("\nLink Lengths:")
-            for i in range(len(joint_positions)-1):
-                length = np.linalg.norm(joint_positions[i+1] - joint_positions[i])
-                link_lengths.append(max(length, 10))
-                print(f"Link {i}: {link_lengths[-1]:.3f}")
-                
+            link_lengths = [np.linalg.norm(joint_positions[i+1] - joint_positions[i]) for i in range(num_joints)]
             total_length = sum(link_lengths)
-            target_dist = np.linalg.norm(target_position)
-            print(f"\nTotal chain length: {total_length:.3f}")
-            print(f"Distance to target: {target_dist:.3f}")
+            target_distance = np.linalg.norm(target_position - joint_positions[0])
             
-            # Check reachability
-            if target_dist > total_length:
-                print("Target out of reach!")
+            if target_distance > total_length:
+                print("Target out of reach")
                 return None, max_iter
-                
-            base_pos = joint_positions[0].copy()
             
-            # Main FABRIK Loop
+            # 2. Main FABRIK Loop
             for iteration in range(max_iter):
-                print(f"\nIteration {iteration+1}")
-                
                 # Forward reaching
                 joint_positions[-1] = target_position.copy()
-                print("\nForward reaching:")
-                for i in range(len(joint_positions)-2, -1, -1):
+                for i in range(num_joints-1, 0, -1):
                     direction = joint_positions[i] - joint_positions[i+1]
-                    distance = link_lengths[i]
-                    
-                    if np.linalg.norm(direction) > 10:
-                        direction = direction / np.linalg.norm(direction)
-                        joint_positions[i] = joint_positions[i+1] + direction * distance
-                    print(f"Joint {i} new pos: {joint_positions[i]}")
+                    direction = direction / np.linalg.norm(direction) * link_lengths[i-1]
+                    joint_positions[i] = joint_positions[i+1] + direction
                 
                 # Backward reaching
-                joint_positions[0] = base_pos.copy()
-                print("\nBackward reaching:")
-                for i in range(len(joint_positions)-1):
+                joint_positions[0] = np.zeros(3)  # Base position
+                for i in range(num_joints):
                     direction = joint_positions[i+1] - joint_positions[i]
-                    distance = link_lengths[i]
-                    
-                    if np.linalg.norm(direction) > 10:
-                        direction = direction / np.linalg.norm(direction)
-                        joint_positions[i+1] = joint_positions[i] + direction * distance
-                    print(f"Joint {i+1} new pos: {joint_positions[i+1]}")
+                    direction = direction / np.linalg.norm(direction) * link_lengths[i]
+                    joint_positions[i+1] = joint_positions[i] + direction
                 
+                # Check convergence
                 error = np.linalg.norm(joint_positions[-1] - target_position)
-                print(f"\nCurrent error: {error:.6f}")
-                
                 if error < tolerance:
-                    print("\nConverged!")
                     q_new = np.zeros(num_joints)
                     for i in range(num_joints):
                         if robot.joint_types[i] == 'R':
@@ -200,16 +168,15 @@ class IKSolver:
                         else:
                             distance = np.linalg.norm(joint_positions[i+1] - joint_positions[i])
                             q_new[i] = np.clip(distance, robot.qlim[i][0], robot.qlim[i][1])
-                    print(f"Final joint angles: {q_new}")
                     return q_new, iteration
             
-            print("\nMax iterations reached without aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa")
+            print("Max iterations reached without convergence")
             return None, max_iter
-            
+        
         except Exception as e:
             print(f"FABRIK solver error: {str(e)}")
             return None, max_iter
-
+    
     @staticmethod
     def jacobian_solver(robot, target_position, max_iter=100, tolerance=1e-3, alpha=0.5):
         """Jacobian bazlı yöntem"""
