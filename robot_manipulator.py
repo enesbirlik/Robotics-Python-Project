@@ -12,6 +12,7 @@ class RobotManipulator:
         self.robot = self._create_robot()
         self.solution_metrics = {}
         self.units = ['deg' if jtype == 'R' else 'mm' for jtype in joint_types]
+        self.joints = self.robot.links
 
     def _create_robot(self):
         try:
@@ -46,6 +47,15 @@ class RobotManipulator:
         except Exception as e:
             print(f"Robot creation error: {str(e)}")
             return None
+        
+    def get_joint_positions(self, q):
+        TM_all = self.robot.fkine_all(q)
+        joint_positions = [TM.t for TM in TM_all]
+        return np.array(joint_positions)
+    
+    def get_end_effector_position(self, q):
+        ee_pose = self.robot.fkine(q)
+        return ee_pose.t
 
     def forward_kinematics(self, joint_angles): 
             return self.robot.fkine(joint_angles)
@@ -56,7 +66,8 @@ class RobotManipulator:
             'fabrik': IKSolver.fabrik_solver,
             'jacobian': IKSolver.jacobian_solver,
             'dls': IKSolver.dls_solver,
-            'newton': IKSolver.newton_raphson_solver    
+            'newton': IKSolver.newton_raphson_solver,
+            'ccd_cozer': IKSolver.ccd_cozer_solver,   
         }
     
         if method not in solvers:

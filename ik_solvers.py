@@ -253,3 +253,66 @@ class IKSolver:
         except Exception as e:
             print(f"DLS çözüm hatası: {str(e)}")
             return None, max_iter
+        
+    @staticmethod
+    def ccd_cozer_solver(robot, target_position, max_iter=100, tolerance=1e-3):
+        """CCD (Dongusel Asagi Yonlu Çözücü) Yöntemi"""
+        try:
+            q = np.zeros(len(robot.joint_types))  # Initial joint configuration
+            joint_positions = robot.get_joint_positions(q)
+            ee_position = joint_positions[-1]  # Use the last joint position as the end-effector position
+
+            for iteration in range(max_iter):
+                if np.linalg.norm(ee_position - target_position) < tolerance:
+                    break
+
+                for i in reversed(range(len(robot.joints))):
+                    joint_position = joint_positions[i]
+
+                    # Direction vectors
+                    direction_to_effector = ee_position - joint_position
+                    direction_to_goal = target_position - joint_position
+
+                    # Normalize directions
+                    direction_to_effector /= np.linalg.norm(direction_to_effector)
+                    direction_to_goal /= np.linalg.norm(direction_to_goal)
+
+                    # Calculate rotation axis and angle
+                    angle = np.arccos(np.clip(
+                        np.dot(direction_to_effector, direction_to_goal), -1.0, 1.0))
+                    axis = np.cross(direction_to_effector, direction_to_goal)
+
+                    # Skip if the axis is near zero (no rotation needed)
+                    if np.linalg.norm(axis) < 1e-6:
+                        continue
+                    axis /= np.linalg.norm(axis)
+
+                    amk = robot.robot.fkine_all(q)
+
+                    # Update joint angle for revolute joints
+                    if robot.joint_types[i] == 'R':
+                        q[i] += angle * np.sign(np.dot(axis, amk[i].a))
+                        if robot.joints[i].qlim is not None:
+                            q[i] = np.clip(q[i], robot.joints[i].qlim[0], robot.joints[i].qlim[1])
+
+                    elif robot.joint_types[i] == 'P':
+                        vector_to_target = target_position - joint_position
+                        translation_axis = np.array([0, 0, 1])  # Assuming z-axis
+                        displacement = np.dot(vector_to_target, translation_axis)
+                        displacement = np.clip(displacement, -np.linalg.norm(vector_to_target), np.linalg.norm(vector_to_target))
+
+                        new_position = q[i] + displacement
+                        q[i] = np.clip(new_position, robot.joints[i].qlim[0], robot.joints[i].qlim[1])
+
+                    # Update joint positions and end-effector position
+                    joint_positions = robot.get_joint_positions(q)
+                    ee_position = joint_positions[-1]
+                    print(q)
+                    return q, iteration
+            
+            print("Max iterations reached without convergence")
+            return None, max_iter
+        
+        except Exception as e:
+            print(f"CCD Cozer solver error: {str(e)}")
+            return None, max_iter
