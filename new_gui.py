@@ -132,7 +132,7 @@ class ModernRobotGUI:
         ctk.CTkLabel(solver_frame, text="Solver:",
                     font=ctk.CTkFont(size=14)).pack(side="left", padx=5)
         self.solver_var = ctk.CTkOptionMenu(solver_frame,
-                                        values=['dls', 'jacobian', 'ccd', 'fabrik', 'newton'],
+                                        values=['dls', 'jacobian', 'ccd', 'fabrik', 'newton', 'ccd_cozer'],
                                         font=ctk.CTkFont(size=14),
                                         width=100)
         self.solver_var.pack(side="left", padx=5)
