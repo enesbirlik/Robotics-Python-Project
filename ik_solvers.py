@@ -256,7 +256,7 @@ class IKSolver:
         
     @staticmethod
     def ccd_cozer_solver(robot, target_position, max_iter=100, tolerance=1e-3):
-        """CCD (Dongusel Asagi Yonlu Çözücü) Yöntemi"""
+        """CCD (Cyclic Coordinate Descend Solver) Yöntemi"""
         try:
             q = np.zeros(len(robot.joint_types))  # Initial joint configuration
             joint_positions = robot.get_joint_positions(q)
