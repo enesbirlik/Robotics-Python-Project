@@ -47,25 +47,8 @@ class RobotManipulator:
             print(f"Robot creation error: {str(e)}")
             return None
 
-    def forward_kinematics(self, joint_angles):
-        try:
-            if not isinstance(joint_angles, np.ndarray):
-                joint_angles = np.array(joint_angles)
-            
-            # Prizmatik eklemler için değerleri düzelt
-            q = np.zeros(len(self.joint_types))
-            for i, (val, jtype) in enumerate(zip(joint_angles, self.joint_types)):
-                if jtype == 'P':
-                    # Prizmatik eklem için d parametresini güncelle
-                    q[i] = val
-                else:
-                    # Revolute eklem için theta parametresini güncelle
-                    q[i] = val
-                    
-            return self.robot.fkine(q)
-        except Exception as e:
-            print(f"Forward kinematics error: {str(e)}")
-            return None
+    def forward_kinematics(self, joint_angles): 
+            return self.robot.fkine(joint_angles)
 
     def solve_inverse_kinematics(self, target_position, method='all', **kwargs):
         solvers = {
