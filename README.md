@@ -73,7 +73,7 @@ Hız bazlı kinematik çözüm.
 Basit ve etkili implementasyon.
 jacobian_solver() fonksiyonu ile çağrılır.
 - Cyclic Coordinate Descent (CCD):
-![CCD](https://youtu.be/xHN6PkfQVLY)
+[CCD](https://www.youtube.com/watch?v=xHN6PkfQVLY)
 Eklem bazlı iteratif çözüm.
 Düşük hesaplama maliyeti.
 ccd_solver() fonksiyonu ile çağrılır.
@@ -114,7 +114,7 @@ Bu komut:
 
 ## GUI Özellikleri ve Kullanımı
 
-![Örnek Video](https://youtu.be/PqQ_4BVTA54)
+[Örnek Video](https://www.youtube.com/watch?v=xHN6PkfQVLY)
 
 ![GUI Görüntüsü](/images/img_gui1.png)
 ![GUI Görüntüsü 2](/images/img_gui2.png)
