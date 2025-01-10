@@ -114,7 +114,7 @@ Bu komut:
 
 ## GUI Özellikleri ve Kullanımı
 
-[Örnek Video](https://www.youtube.com/watch?v=xHN6PkfQVLY)
+[Örnek Video](https://www.youtube.com/watch?v=PqQ_4BVTA54)
 
 ![GUI Görüntüsü](/images/img_gui1.png)
 ![GUI Görüntüsü 2](/images/img_gui2.png)
