@@ -1,5 +1,5 @@
 from robot_manipulator import RobotManipulator
-from robot_config import get_ur5_parameters, get_test_positions, get_solver_parameters,get_custom_robot_parameters
+from robot_config import get_scara_parameters, get_test_positions, get_solver_parameters,get_custom_robot_parameters
 from ik_solvers import IKSolver
 import numpy as np
 import time
@@ -9,12 +9,33 @@ def interpolate_positions(start, end, steps):
 
 def test_ik_solvers():
     # Get robot parameters
-    dh_params, joint_types, qlim = get_custom_robot_parameters()
+    dh_params, joint_types, qlim = get_scara_parameters()
     robot = RobotManipulator(dh_params, joint_types, qlim)
+    
+    print("\nRobot Configuration:")
+    print("=" * 50)
+    print(f"Joint Types: {joint_types}")
+    print("\nDH Parameters:")
+    for i, params in enumerate(dh_params):
+        print(f"Joint {i}: {params}")
+    print("\nJoint Limits:")
+    for i, limits in enumerate(qlim):
+        print(f"Joint {i}: {limits}")
+    
+    # Test forward kinematics at zero configuration
+    q_zero = np.zeros(len(joint_types))
+    fk_zero = robot.forward_kinematics(q_zero)
+    print("\nInitial Configuration:")
+    print(f"Joint angles (zero): {q_zero}")
+    print(f"Initial end-effector position: {fk_zero.t}")
     
     # Get test positions and solver parameters
     test_positions = get_test_positions()
     solver_params = get_solver_parameters()
+    
+    print("\nGoal Positions:")
+    for i, pos in enumerate(test_positions):
+        print(f"Goal {i+1}: {pos}")
     
     # Number of interpolation steps between each pair of points
     steps = 5
@@ -27,27 +48,33 @@ def test_ik_solvers():
         interpolated_positions.extend(interpolate_positions(start, end, steps))
     interpolated_positions.append(test_positions[-1])
     
+    print("\nInterpolated Positions:")
+    for i, pos in enumerate(interpolated_positions):
+        print(f"Point {i+1}: {pos}")
+    
     # Define solvers
     solvers = {
-        # 'CCD': IKSolver.ccd_solver,
-        # 'FABRIK': IKSolver.fabrik_solver,
         'Jacobian': IKSolver.jacobian_solver,
         'DLS': IKSolver.dls_solver,
-        'Newton-Raphson': IKSolver.newton_raphson_solver
+        'Newton': IKSolver.newton_raphson_solver,
+        # 'CCD': IKSolver.ccd_cozer_solver,
+        # 'FABRIK': IKSolver.fabrik_solver,
     }
     
     # Compare solver performances
     performance_metrics = {}
     
-    
     for solver_name, solver_func in solvers.items():
         print(f"\nTesting {solver_name} solver...")
+        print("=" * 50)
         start_time = time.time()
         total_iterations = 0
         total_error = 0
         solutions = []
         
-        for target_pos in interpolated_positions:
+        for i, target_pos in enumerate(interpolated_positions):
+            print(f"\nTarget {i+1}: {target_pos}")
+            
             result = robot.solve_inverse_kinematics(
                 target_pos,
                 method=solver_name.lower(),
@@ -55,9 +82,16 @@ def test_ik_solvers():
             )
             
             if result and 'joint_angles' in result:
-                solutions.append(result['joint_angles'])
+                q_sol = result['joint_angles']
+                solutions.append(q_sol)
                 total_iterations += result['iterations']
                 total_error += result['error']
+                
+                # Forward kinematics check
+                fk_result = robot.forward_kinematics(q_sol)
+                print(f"Joint angles: {np.degrees(q_sol) if isinstance(q_sol, np.ndarray) else q_sol}")
+                print(f"Forward kinematics result: {fk_result.t}")
+                print(f"Position error: {np.linalg.norm(fk_result.t - target_pos):.6f}")
             else:
                 print(f"Solver {solver_name} failed for target position {target_pos}")
                 break
@@ -73,10 +107,21 @@ def test_ik_solvers():
                 'solutions': solutions
             }
             
-            # Visualize the trajectory for this solver
+            # Print final positions
+            print(f"\nFinal Results for {solver_name}:")
+            print("-" * 30)
+            for i, q_sol in enumerate(solutions):
+                fk_result = robot.forward_kinematics(q_sol)
+                print(f"\nSolution {i+1}:")
+                print(f"Target: {interpolated_positions[i]}")
+                print(f"Joint angles (deg): {np.degrees(q_sol)}")
+                print(f"Achieved position: {fk_result.t}")
+                print(f"Error: {np.linalg.norm(fk_result.t - interpolated_positions[i]):.6f}")
+            
+            # Visualize the trajectory
             print(f"\nVisualizing {solver_name} solution trajectory...")
             qtraj = np.array(solutions)
-            robot.animate_trajectory(qtraj)  # Will show continuous motion
+            robot.animate_trajectory(qtraj)
             input(f"Press Enter to continue to next solver...")
     
     # Print comparison results
@@ -90,7 +135,7 @@ def test_ik_solvers():
         print(f"Success Rate: {metrics['success_rate']:.1f}%")
 
 def main():
-    print("UR5 Robot Inverse Kinematics Solution Test Starting...")
+    print("Robot Inverse Kinematics Solution Test Starting...")
     print("=" * 50)
     test_ik_solvers()
 

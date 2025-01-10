@@ -62,7 +62,7 @@ class RobotManipulator:
 
     def solve_inverse_kinematics(self, target_position, method='all', **kwargs):
         solvers = {
-            'ccd': IKSolver.ccd_solver,
+            'ccd': IKSolver.ccd_cozer_solver,
             'fabrik': IKSolver.fabrik_solver,
             'jacobian': IKSolver.jacobian_solver,
             'dls': IKSolver.dls_solver,

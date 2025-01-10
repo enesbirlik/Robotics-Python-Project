@@ -80,8 +80,8 @@ def get_kr6_parameters():
 def get_test_positions():
     """Test positions for inverse kinematics"""
     return [
-        [0, 60, 100],     # Start position (mm)
-        [40, 0, 100]      # Goal position (mm)
+        [100, 20, 140],     # Start position (mm)
+        # [40, 0, 100]      # Goal position (mm)
     ]
 
 def get_solver_parameters():
