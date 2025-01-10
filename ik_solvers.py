@@ -308,7 +308,7 @@ class IKSolver:
                     joint_positions = robot.get_joint_positions(q)
                     ee_position = joint_positions[-1]
                     print(q)
-                    return q, iteration
+                return q, iteration
             
             print("Max iterations reached without convergence")
             return None, max_iter
