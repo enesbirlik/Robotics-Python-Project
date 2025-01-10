@@ -116,3 +116,62 @@ Bu komut:
 youtupp vid:
 
 ![GUI Görüntüsü](/images/img_gui1.png)
+![GUI Görüntüsü 2](/images/img_gui2.png)
+
+### Temel Bileşenler
+### 1. Robot Konfigürasyon Paneli
+- Robot Type: Robot tipi seçimi (SCARA, UR5, KR6, Custom)
+- Number of Joints: Eklem sayısı seçimi (2-10 arası)
+- DH Parametre Tablosu:
+- Joint Type (R: Revolute, P: Prismatic)
+- a, alpha, d, offset parametreleri
+- q_min, q_max (eklem limitleri)
+### 2. Kontrol Paneli
+Solver: Çözücü algoritması seçimi
+- jacobian
+- dls (Damped Least Squares)
+- ccd (Cyclic Coordinate Descent)
+- fabrik
+- newton
+Target Position: Hedef konum girişi (X, Y, Z) mm cinsinden
+### 3. Butonlar
+- Solve IK: Seçili çözücü ile ters kinematik hesaplama
+- Reset Robot: Robotu başlangıç pozisyonuna döndürme
+- Add Point: Yörünge noktası ekleme
+- Clear Points: Yörünge noktalarını temizleme
+- Animate: Yörünge animasyonunu başlatma
+### 4. Performans Metrikleri
+- Iterations: Çözüm için gereken iterasyon sayısı
+- Time: Çözüm süresi (saniye)
+- Error: Konum hatası (mm)
+### 5. Log Paneli
+- Eklenen noktalar
+- Bulunan çözümler
+- Eklem açıları/konumları
+- Hata mesajları
+### 6. Yörünge Noktaları
+- Eklenen noktaların listesi
+- Her nokta için X, Y, Z koordinatları
+![GUI Görüntüsü 3](/images/img_gui3.png)
+
+### Örnek Kullanım
+Temel Çözüm İşlemi:
+```plaintext
+1. Robot tipini seçin (örn: SCARA)
+2. Hedef pozisyonu girin (X, Y, Z)
+3. Çözücü seçin (örn: jacobian)
+4. "Solve IK" butonuna tıklayın
+```
+Yörünge Oluşturma:
+```plaintext
+1. İlk hedef noktayı girin
+2. "Add Point" ile ekleyin
+3. İkinci noktayı girin ve ekleyin
+4. "Animate" ile yörüngeyi canlandırın
+```
+Önemli Notlar
+- Robot tipi değiştirildiğinde DH parametreleri otomatik güncellenir
+- Prizmatik eklemler (P) için limit değerleri mm cinsindendir
+- Döner eklemler (R) için limit değerleri radyan cinsindendir
+- Hedef nokta robot çalışma uzayı dışındaysa uyarı verilir
+- Yörünge noktaları arası otomatik interpolasyon yapılır
