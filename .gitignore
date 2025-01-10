@@ -31,5 +31,5 @@ build/
 *.log
 
 #py files dont nessesary
-test.py
+test1.py
 gui.py
