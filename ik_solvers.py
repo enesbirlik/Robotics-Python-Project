@@ -19,7 +19,7 @@ class IKSolver:
     @staticmethod
     def newton_raphson_solver(robot, target_position, max_iter=100, tolerance=1e-3):
         """
-        Newton-Raphson Metodu ile Robot Kolu Ters Kinematik Çözümü
+        Newton-Raphson Metodu ile Robot Kol Ters Kinematik Çözümü
         
         Bu metot, robot kolunun ters kinematiğini çözmek için Newton-Raphson 
         sayısal optimizasyon yöntemini kullanır. Temel mantık, hedef pozisyona 
@@ -156,20 +156,57 @@ class IKSolver:
 
     @staticmethod
     def fabrik_solver(robot, target_position, max_iter=100, tolerance=1e-3):
-        """FABRIK (Forward And Backward Reaching Inverse Kinematics)"""
+        """
+        FABRIK (Forward And Backward Reaching Inverse Kinematics) Metodu ile Robot Kolu Ters Kinematik Çözümü
+        
+        Bu metot, robot kolunun ters kinematiğini çözmek için FABRIK yöntemini kullanır.
+        Geometrik tabanlı iteratif bir çözüm yaklaşımı sunar.
+        
+        Matematiksel Temel:
+        1) p_i: i. eklemin pozisyonu 
+        2) l_i: i. link uzunluğu
+        3) t: hedef pozisyon
+        4) d_i: iki nokta arası mesafe vektörü
+        5) r_i: birim yön vektörü
+        
+        Her iterasyonda iki aşama uygulanır:
+        A) İleri Hareket (Forward Reaching):
+            - Son eklemden başa doğru
+            - r_i = (p_i - p_(i+1)) / ||p_i - p_(i+1)||
+            - p_i_new = p_(i+1) + (l_i * r_i)
+            
+        B) Geri Hareket (Backward Reaching):
+            - Baştan sona doğru
+            - r_i = (p_(i+1) - p_i) / ||p_(i+1) - p_i||
+            - p_(i+1)_new = p_i + (l_i * r_i)
+            
+        Geometrik Özellikler:
+        - Link uzunlukları korunur
+        - Minimum enerji prensibi 
+        - Doğal görünümlü hareketler
+        - O(n) hesaplama karmaşıklığı
+        
+        @param robot: Robot kolu objesi
+        @param target_position: Hedef pozisyon [x, y, z]
+        @param max_iter: Maksimum iterasyon sayısı
+        @param tolerance: Kabul edilebilir hata miktarı
+        @return: (eklem_açıları, iterasyon_sayısı)
+        """
         try:
             num_joints = len(robot.joint_types)
             q = np.zeros(num_joints)
             
-            # 1. Initialize
-            joint_positions = [np.zeros(3)]  # Base position
+            # 1. Başlangıç durumu hesaplanır
+            joint_positions = [np.zeros(3)]  # Taban pozisyonu
             for i in range(num_joints):
                 pose = robot.forward_kinematics(q[:i+1])
                 if pose is None:
                     return None, max_iter
                 joint_positions.append(pose.t)
             
-            link_lengths = [np.linalg.norm(joint_positions[i+1] - joint_positions[i]) for i in range(num_joints)]
+            # Link uzunlukları ve erişilebilirlik kontrolü
+            link_lengths = [np.linalg.norm(joint_positions[i+1] - joint_positions[i]) 
+                        for i in range(num_joints)]
             total_length = sum(link_lengths)
             target_distance = np.linalg.norm(target_position - joint_positions[0])
             
@@ -177,40 +214,43 @@ class IKSolver:
                 print("Target out of reach")
                 return None, max_iter
             
-            # 2. Main FABRIK Loop
+            # 2. Ana FABRIK iterasyon döngüsü
             for iteration in range(max_iter):
-                # Forward reaching
+                # İleri Hareket Aşaması
                 joint_positions[-1] = target_position.copy()
                 for i in range(num_joints-1, 0, -1):
                     direction = joint_positions[i] - joint_positions[i+1]
                     direction = direction / np.linalg.norm(direction) * link_lengths[i-1]
                     joint_positions[i] = joint_positions[i+1] + direction
                 
-                # Backward reaching
-                joint_positions[0] = np.zeros(3)  # Base position
+                # Geri Hareket Aşaması
+                joint_positions[0] = np.zeros(3)  # Taban sabittir
                 for i in range(num_joints):
                     direction = joint_positions[i+1] - joint_positions[i]
                     direction = direction / np.linalg.norm(direction) * link_lengths[i]
                     joint_positions[i+1] = joint_positions[i] + direction
                 
-                # Check convergence
+                # Yakınsama kontrolü
                 error = np.linalg.norm(joint_positions[-1] - target_position)
                 if error < tolerance:
+                    # Eklem açıları hesaplanır
                     q_new = np.zeros(num_joints)
                     for i in range(num_joints):
                         if robot.joint_types[i] == 'R':
+                            # Döner eklem için açı hesabı
                             v1 = joint_positions[i+1] - joint_positions[i]
                             v2 = joint_positions[i+2] - joint_positions[i+1] if i < num_joints-1 else v1
                             angle = np.arctan2(np.cross(v1, v2)[2], np.dot(v1, v2))
                             q_new[i] = np.clip(angle, robot.qlim[i][0], robot.qlim[i][1])
                         else:
+                            # Prizmatik eklem için uzunluk hesabı
                             distance = np.linalg.norm(joint_positions[i+1] - joint_positions[i])
                             q_new[i] = np.clip(distance, robot.qlim[i][0], robot.qlim[i][1])
                     return q_new, iteration
             
             print("Max iterations reached without convergence")
             return None, max_iter
-        
+            
         except Exception as e:
             print(f"FABRIK solver error: {str(e)}")
             return None, max_iter

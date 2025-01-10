@@ -116,7 +116,7 @@ def test_ik_solvers():
                 print(f"Target: {interpolated_positions[i]}")
                 print(f"Joint angles (deg): {np.degrees(q_sol)}")
                 print(f"Achieved position: {fk_result.t}")
-                print(f"Error: {np.linalg.norm(fk_result.t - interpolated_positions[i]):.6f}")
+                print(f"Error: {np.linalg.norm(fk_result.t - interpolated_positions[i]):.15f}")
             
             # Visualize the trajectory
             print(f"\nVisualizing {solver_name} solution trajectory...")

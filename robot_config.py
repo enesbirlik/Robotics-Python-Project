@@ -43,14 +43,14 @@ def get_scara_parameters():
         [100,   250,    0,      0],    # Joint 1 (R)
         [0,     250,    np.pi,  0],    # Joint 2 (R)
         [0,     0,      0,      0],    # Joint 3 (P)
-        [0,     0,      0,      0]     # Joint 4 (R)
+        #[0,     0,      0,      0]     # Joint 4 (R)
     ]
-    joint_types = "RRPR"
+    joint_types = "RRP"
     qlim = [
         [-np.pi/2, np.pi/2],    # Joint 1 (R)
         [-np.pi, np.pi],        # Joint 2 (R)
         [-150, 150],            # Joint 3 (P) mm
-        [-np.pi/2, np.pi/2]     # Joint 4 (R)
+        #[-np.pi/2, np.pi/2]     # Joint 4 (R)
     ]
     
     return dh_params, joint_types, qlim
