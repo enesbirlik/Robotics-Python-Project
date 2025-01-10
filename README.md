@@ -1,6 +1,6 @@
 # Robot Manipulator Inverse Kinematics Solver Project
 
-Bu proje, farklı robot manipülatörleri (özellikle RRP - Revolute-Revolute-Prismatic) için çeşitli ters kinematik çözüm yöntemlerini uygulayan ve karşılaştıran bir Python uygulamasıdır.
+Bu proje, farklı robot manipülatörleri için çeşitli ters kinematik çözüm yöntemlerini uygulayan ve karşılaştıran bir Python uygulamasıdır.
 
 ## Proje Hakkında
 
@@ -114,3 +114,5 @@ Bu komut:
 ## GUI Özellikleri ve Kullanımı
 
 youtupp vid:
+
+![GUI Görüntüsü](/images/img_gui1.png)
