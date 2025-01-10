@@ -18,39 +18,77 @@ class IKSolver:
 
     @staticmethod
     def newton_raphson_solver(robot, target_position, max_iter=100, tolerance=1e-3):
-        """Newton-Raphson method for inverse kinematics"""
+        """
+        Newton-Raphson Metodu ile Robot Kolu Ters Kinematik Çözümü
+        
+        Bu metot, robot kolunun ters kinematiğini çözmek için Newton-Raphson 
+        sayısal optimizasyon yöntemini kullanır. Temel mantık, hedef pozisyona 
+        ulaşmak için eklem açılarını iteratif olarak güncellemektir.
+        
+        Matematiksel Temel:
+        - f(q) = x_current - x_target : Pozisyon hatası
+        - J(q) : Jacobian matrisi (hız ilişkilerini temsil eder)
+        - Δq = -J⁻¹ * f(q) : Eklem açılarındaki değişim
+        
+        Her iterasyonda:
+        1) Forward kinematik ile mevcut pozisyon hesaplanır
+        2) Hedef pozisyonla mevcut pozisyon arasındaki hata bulunur
+        3) Jacobian matrisi hesaplanır
+        4) Pseudo-inverse ile Δq değişimi hesaplanır
+        5) Eklem açıları güncellenir
+        
+        @param robot: Robot kolu objesi
+        @param target_position: Hedef pozisyon [x, y, z]
+        @param max_iter: Maksimum iterasyon sayısı
+        @param tolerance: Kabul edilebilir hata miktarı
+        @return: (eklem_açıları, iterasyon_sayısı)   
+        """
         try:
+            # Başlangıç eklem açıları (sıfır konumu)
             q = np.zeros(len(robot.joint_types))
             
+            # İteratif çözüm döngüsü
             for iteration in range(max_iter):
+                # 1. Adım: Forward kinematik ile mevcut pozisyonu bul
                 current_pose = robot.forward_kinematics(q)
                 if current_pose is None:
                     return None, max_iter
                     
+                # Mevcut uç pozisyonunu al (translation vektörü)
                 current_pos = current_pose.t
-                error = target_position - current_pos
-                error_norm = np.linalg.norm(error)
                 
+                # 2. Adım: Pozisyon hatasını hesapla
+                error = target_position - current_pos  # e = x_d - x
+                error_norm = np.linalg.norm(error)    # Hatanın büyüklüğü
+                
+                # Hata tolerans değerinden küçükse çözüm bulunmuş demektir
                 if error_norm < tolerance:
                     return q, iteration
                 
-                # Calculate Jacobian
+                # 3. Adım: Jacobian matrisini hesapla
+                # Sadece pozisyon için ilk 3 satırı al (3x6 matris)
                 J = robot.robot.jacob0(q)[:3, :]
                 
-                # Calculate pseudo-inverse of Jacobian
+                # 4. Adım: Jacobian'ın pseudo-inverse'ini hesapla
+                # Moore-Penrose pseudo-inverse: J⁺ = (J^T * J)^(-1) * J^T
                 J_pinv = pinv(J)
                 
-                # Calculate joint corrections using Newton-Raphson method
+                # 5. Adım: Newton-Raphson düzeltmesini hesapla
+                # f: pozisyon hatası fonksiyonu
                 f = current_pos - target_position
+                # Δq = -J⁺ * f : Eklem açılarındaki değişim
                 dq = -np.dot(J_pinv, f)
                 
-                # Update joint angles
+                # 6. Adım: Eklem açılarını güncelle
+                # q_new = q_old + Δq
                 q = q + dq
                 
-                # Apply joint limits
+                # 7. Adım: Eklem limitlerini kontrol et ve uygula
+                # clip fonksiyonu ile açıları limit değerleri arasında tut
                 for i in range(len(q)):
                     q[i] = np.clip(q[i], robot.qlim[i][0], robot.qlim[i][1])
             
+            # Maksimum iterasyon sayısına ulaşıldı
             return q, max_iter
             
         except Exception as e:
@@ -179,75 +217,168 @@ class IKSolver:
     
     @staticmethod
     def jacobian_solver(robot, target_position, max_iter=100, tolerance=1e-3, alpha=0.5):
-        """Jacobian bazlı yöntem"""
+        """
+        Jacobian Bazlı Ters Kinematik Çözüm Metodu
+        
+        Bu metot, robotun ters kinematik problemini Jacobian matrisi kullanarak çözer.
+        Jacobian matrisi, eklem hızları ile uç işlevci hızları arasındaki ilişkiyi 
+        temsil eder: ẋ = J(q)q̇
+        
+        Matematiksel Temel:
+        - Jacobian (J): Eklem açıları ile kartezyen koordinatlar arasındaki
+        diferansiyel ilişkiyi gösteren matris
+        - ẋ = J(q)q̇ : Hız ilişkisi denklemi
+        - Δq = J⁺(q)Δx : Pozisyon değişimi için çözüm
+        - α : Öğrenme katsayısı (step size)
+        
+        Çözüm Adımları:
+        1) e = x_target - x_current : Pozisyon hatası
+        2) J = ∂x/∂q : Jacobian matrisi
+        3) J⁺ = (J^T * J)^(-1) * J^T : Pseudo-inverse
+        4) Δq = α * J⁺ * e : Eklem açısı değişimi
+        
+        @param robot: Robot kolu objesi
+        @param target_position: Hedef pozisyon vektörü [x, y, z]
+        @param max_iter: Maksimum iterasyon sayısı
+        @param tolerance: Kabul edilebilir hata miktarı
+        @param alpha: Öğrenme katsayısı (0 < α ≤ 1)
+        @return: (eklem_açıları, iterasyon_sayısı)
+        """
         try:
+            # Başlangıç eklem açıları (sıfır konumu)
             q = np.zeros(len(robot.joint_types))
             
+            # İteratif çözüm döngüsü
             for iteration in range(max_iter):
+                # 1. Adım: Mevcut pozisyonu hesapla
                 current_pose = robot.forward_kinematics(q)
                 if current_pose is None:
                     return None, max_iter
                     
+                # Uç işlevcinin mevcut pozisyonu
                 current_pos = current_pose.t
+                
+                # 2. Adım: Pozisyon hatasını hesapla
+                # e = x_d - x (hedef - mevcut)
                 error = target_position - current_pos
                 error_norm = np.linalg.norm(error)
                 
+                # Yakınsama kontrolü
                 if error_norm < tolerance:
                     return q, iteration
                 
-                # Jacobian hesaplama
+                # 3. Adım: Geometrik Jacobian matrisini hesapla
+                # Sadece pozisyon için ilk 3 satır (3x6 boyutunda)
+                # J = [∂x/∂q₁ ∂x/∂q₂ ... ∂x/∂qₙ]
+                #     [∂y/∂q₁ ∂y/∂q₂ ... ∂y/∂qₙ]
+                #     [∂z/∂q₁ ∂z/∂q₂ ... ∂z/∂qₙ]
                 J = robot.robot.jacob0(q)[:3, :]
                 
-                # Pseudo-inverse çözüm
+                # 4. Adım: Jacobian'ın pseudo-inverse'ini hesapla
+                # Moore-Penrose pseudo-inverse kullanılıyor
                 J_pinv = pinv(J)
+                
+                # 5. Adım: Eklem açılarındaki değişimi hesapla
+                # Δq = α * J⁺ * e
+                # α: Adım büyüklüğü (küçük değerler daha kararlı ama yavaş)
                 dq = alpha * np.dot(J_pinv, error)
                 
-                # Açı güncelleme
+                # 6. Adım: Eklem açılarını güncelle
+                # q_new = q_old + Δq
                 q = q + dq
                 
-                # Limit kontrolü
+                # 7. Adım: Eklem limitlerini kontrol et
+                # Her eklem için min-max değerleri arasında kal
                 for i in range(len(q)):
                     q[i] = np.clip(q[i], robot.qlim[i][0], robot.qlim[i][1])
             
+            # Maksimum iterasyona ulaşıldı
             return q, iteration
             
         except Exception as e:
             print(f"Jacobian çözüm hatası: {str(e)}")
             return None, max_iter
-
     @staticmethod
     def dls_solver(robot, target_position, lambda_val=0.1, max_iter=100, tolerance=1e-3):
-        """Damped Least Squares yöntemi"""
+        """
+        Damped Least Squares (DLS) Ters Kinematik Çözüm Metodu
+        
+        DLS yöntemi, Jacobian matrisinin tekil (singular) olduğu durumlarda bile
+        kararlı çözüm üretebilen gelişmiş bir ters kinematik çözüm metodudur.
+        Levenberg-Marquardt algoritmasının robotik uygulamasıdır.
+        
+        Matematiksel Temel:
+        - Standart çözüm: Δq = J⁺ * Δx
+        - DLS çözümü: Δq = J^T * (JJ^T + λ²I)^(-1) * Δx
+        
+        λ (lambda) parametresi:
+        - λ = 0 : Normal pseudo-inverse çözümü
+        - λ > 0 : Sönümlenmiş çözüm (daha kararlı)
+        - Büyük λ : Daha yavaş ama kararlı hareket
+        - Küçük λ : Daha hızlı ama potansiyel kararsız hareket
+        
+        Avantajları:
+        1. Tekillik noktalarında kararlı çözüm
+        2. Eklem hızlarının sınırlandırılması
+        3. Sayısal kararlılık
+        
+        @param robot: Robot kolu objesi
+        @param target_position: Hedef pozisyon [x, y, z]
+        @param lambda_val: Sönümleme faktörü
+        @param max_iter: Maksimum iterasyon sayısı
+        @param tolerance: Kabul edilebilir hata miktarı
+        @return: (eklem_açıları, iterasyon_sayısı)
+        """
         try:
+            # Başlangıç eklem açıları (sıfır konumu)
             q = np.zeros(len(robot.joint_types))
-            I = np.eye(3)  # 3x3 birim matris (pozisyon için)
             
+            # 3x3 birim matris (pozisyon kontrolü için)
+            # Oryantasyon kontrolü eklenirse 6x6 olmalı
+            I = np.eye(3)
+            
+            # İteratif çözüm döngüsü
             for iteration in range(max_iter):
+                # 1. Adım: Forward kinematik ile mevcut pozisyonu hesapla
                 current_pose = robot.forward_kinematics(q)
                 if current_pose is None:
                     return None, max_iter
                     
                 current_pos = current_pose.t
+                
+                # 2. Adım: Pozisyon hatasını hesapla
+                # Δx = x_target - x_current
                 error = target_position - current_pos
                 error_norm = np.linalg.norm(error)
                 
+                # Yakınsama kontrolü
                 if error_norm < tolerance:
                     return q, iteration
                 
-                # Jacobian hesaplama
+                # 3. Adım: Geometrik Jacobian matrisini hesapla
+                # Sadece pozisyon için 3x6 matris
                 J = robot.robot.jacob0(q)[:3, :]
                 
-                # DLS çözümü
-                JT = J.T
-                dq = np.dot(JT, np.linalg.solve(np.dot(J, JT) + lambda_val**2 * I, error))
+                # 4. Adım: DLS çözümü
+                # Formül: Δq = J^T * (JJ^T + λ²I)^(-1) * Δx
+                JT = J.T  # Jacobian'ın transpozu
                 
-                # Açı güncelleme
+                # (JJ^T + λ²I)^(-1) * Δx kısmını çöz
+                # Doğrusal denklem sistemi: (JJ^T + λ²I)x = error
+                dq = np.dot(JT, np.linalg.solve(
+                    np.dot(J, JT) + lambda_val**2 * I,  # Katsayılar matrisi
+                    error  # Sabit terimler vektörü
+                ))
+                
+                # 5. Adım: Eklem açılarını güncelle
+                # q_new = q_old + Δq
                 q = q + dq
                 
-                # Limit kontrolü
+                # 6. Adım: Eklem limitlerini kontrol et
                 for i in range(len(q)):
                     q[i] = np.clip(q[i], robot.qlim[i][0], robot.qlim[i][1])
             
+            # Maksimum iterasyona ulaşıldı
             return q, iteration
             
         except Exception as e:
