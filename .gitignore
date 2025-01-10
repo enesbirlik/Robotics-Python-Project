@@ -29,3 +29,7 @@ build/
 
 # Log files
 *.log
+
+#py files dont nessesary
+test.py
+gui.py
